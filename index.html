@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon File Converter</title>
+  <style>
+    :root {
+      --bg: #05050a;
+      --neon: #00fff7;
+      --neon-alt: #ff00ff;
+      --card: #0b0b14;
+      --text: #eaeaff;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #0b0b18, var(--bg));
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 520px;
+      background: linear-gradient(180deg, #0e0e1c, var(--card));
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 0 25px rgba(0, 255, 247, 0.25), inset 0 0 20px rgba(255, 0, 255, 0.08);
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0 0 8px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--neon);
+      text-shadow: 0 0 12px rgba(0, 255, 247, 0.8);
+    }
+
+    p {
+      text-align: center;
+      opacity: 0.8;
+      margin-bottom: 18px;
+      font-size: 14px;
+    }
+
+    .drop {
+      border: 2px dashed rgba(0, 255, 247, 0.6);
+      border-radius: 12px;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: 0.25s;
+      box-shadow: inset 0 0 10px rgba(0, 255, 247, 0.15);
+      font-size: 13px;
+    }
+
+    .drop:hover {
+      background: rgba(0, 255, 247, 0.05);
+      box-shadow: inset 0 0 20px rgba(0, 255, 247, 0.25), 0 0 18px rgba(0, 255, 247, 0.3);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .info {
+      margin-top: 16px;
+      background: #080812;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.15);
+      display: none;
+    }
+
+    .row {
+      margin-bottom: 12px;
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    input[type="text"], select, button {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: none;
+      outline: none;
+      background: #0f0f20;
+      color: var(--text);
+      font-size: 15px;
+      box-shadow: 0 0 12px rgba(255, 0, 255, 0.25), inset 0 0 8px rgba(0, 255, 247, 0.2);
+    }
+
+    input[type="text"] {
+      margin-top: 6px;
+    }
+
+    button {
+      margin-top: 14px;
+      cursor: pointer;
+      font-weight: 600;
+      background: linear-gradient(90deg, var(--neon), var(--neon-alt));
+      color: #000;
+      box-shadow: 0 0 20px rgba(0, 255, 247, 0.7);
+      transition: 0.25s;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    footer {
+      text-align: center;
+      font-size: 11px;
+      opacity: 0.5;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 480px) {
+      .app {
+        padding: 14px;
+      }
+      .drop {
+        padding: 8px;
+        font-size: 12px;
+      }
+    }
+      .drop {
+        padding: 14px;
+        font-size: 13px;
+      }
+    }
+      .drop {
+        padding: 20px;
+        font-size: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Premium File Converter</h1>
+    <p>Upload a file, choose format, set name, download.</p>
+
+    <label class="drop" for="fileInput">Tap or drop a file</label>
+    <input id="fileInput" type="file" />
+
+    <div class="info" id="fileInfo">
+      <div class="row"><strong>Original name:</strong> <span id="name"></span></div>
+      <div class="row"><strong>Detected type:</strong> <span id="type"></span></div>
+
+      <div class="row">
+        <strong>New file name (no extension)</strong>
+        <input type="text" id="customName" placeholder="my_converted_file" />
+      </div>
+
+      <div class="row">
+        <strong>Convert to file type (extension)</strong>
+        <input type="text" id="formatInput" placeholder="e.g. mp3, png, pdf" />
+      </div>
+
+      <button id="downloadBtn">Convert & Download</button>
+    </div>
+
+    <footer>© 2026 CATTAlex</footer>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const info = document.getElementById('fileInfo');
+    const nameEl = document.getElementById('name');
+    const typeEl = document.getElementById('type');
+    const formatInput = document.getElementById('formatInput');
+    const btn = document.getElementById('downloadBtn');
+    const customNameInput = document.getElementById('customName');
+
+    const conversions = {
+      image: ['png', 'jpg', 'webp'],
+      text: ['txt', 'md', 'json'],
+      audio: ['mp3', 'wav', 'ogg'],
+      video: ['mp4', 'webm'],
+      other: ['zip', 'bin']
+    };
+
+    function detectTypeFromName(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) return 'image';
+      if (['mp3', 'wav', 'ogg'].includes(ext)) return 'audio';
+      if (['mp4', 'webm', 'mov'].includes(ext)) return 'video';
+      if (['txt', 'md', 'json', 'csv'].includes(ext)) return 'text';
+      return 'other';
+    }
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const detected = detectTypeFromName(file);
+
+      nameEl.textContent = file.name;
+      typeEl.textContent = detected;
+      customNameInput.value = file.name.replace(/\.[^/.]+$/, '');
+
+      formatInput.value = '';
+
+      info.style.display = 'block';
+
+      btn.onclick = () => {
+        const newName = customNameInput.value.trim() || 'converted_file';
+        const ext = formatInput.value.replace('.', '').toLowerCase();
+        const blob = new Blob([file], { type: file.type });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `${newName}.${ext}`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      };
+    });
+  </script>
+</body>
+</html>
