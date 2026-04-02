@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OmniConvert Pro</title>
+  <title>NexusConvert Pro</title>
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
@@ -11,7 +11,8 @@
     :root {
       --bg: #05050a;
       --panel: #0e0e1c;
-      --card: #0b0b14;
+      --card: #14141f; /* Slightly lighter to match the image UI */
+      --card-hover: #1f1f2e;
       --neon: #00fff7;
       --neon-alt: #ff00ff;
       --text: #eaeaff;
@@ -19,19 +20,22 @@
       --success: #00ff88;
       --danger: #ff3366;
       --border: rgba(255, 255, 255, 0.1);
-      --dropdown-bg: #121222;
+      --dropdown-bg: #12121a;
+      --sidebar-bg: #0b0b12;
     }
 
     [data-theme="light"] {
       --bg: #f0f2f5;
       --panel: #ffffff;
-      --card: #f8f9fa;
+      --card: #f0f0f5;
+      --card-hover: #e0e0eb;
       --neon: #0066ff;
       --neon-alt: #cc00ff;
       --text: #1a1a2e;
       --text-dim: #666;
       --border: rgba(0, 0, 0, 0.1);
       --dropdown-bg: #ffffff;
+      --sidebar-bg: #f8f9fa;
     }
 
     * { box-sizing: border-box; font-family: "Segoe UI", Roboto, sans-serif; }
@@ -84,8 +88,8 @@
     .file-meta h4 { margin: 0 0 4px 0; font-size: 14px; }
     .file-meta p { margin: 0; font-size: 11px; color: var(--text-dim); }
 
-    /* Custom Mega Dropdown */
-    .mega-select-container { position: relative; margin-bottom: 20px; }
+    /* Modal Button */
+    .mega-select-container { margin-bottom: 20px; }
     .mega-select-btn {
       width: 100%; padding: 14px; background: var(--card); color: var(--text);
       border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
@@ -95,73 +99,156 @@
     .mega-select-btn:hover { border-color: var(--neon); }
     .mega-select-btn span { font-weight: bold; color: var(--neon); }
 
-    .mega-dropdown {
-      position: absolute; top: 100%; left: 0; width: 100%; margin-top: 8px;
-      background: var(--dropdown-bg); border: 1px solid var(--neon); border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(0, 255, 247, 0.1);
-      z-index: 100; display: none; flex-direction: column; overflow: hidden;
-      max-height: 400px;
+    /* Modal Structure */
+    .mega-backdrop {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      z-index: 99; display: none;
     }
-    .mega-dropdown.active { display: flex; }
+    .mega-backdrop.active { display: block; }
 
-    .dropdown-header { padding: 12px; border-bottom: 1px solid var(--border); background: var(--card); }
-    .dropdown-header input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); outline: none; }
-    .dropdown-header input:focus { border-color: var(--neon); }
+    .mega-dropdown {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 90%; max-width: 750px; max-height: 85vh;
+      background: var(--dropdown-bg); border: 1px solid var(--neon); border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8), 0 0 30px rgba(0, 255, 247, 0.2);
+      z-index: 100; display: none; flex-direction: column; overflow: hidden;
+    }
+    .mega-dropdown.active { display: flex; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 
-    .dropdown-body { padding: 16px; overflow-y: auto; flex-grow: 1; }
-    .dropdown-body::-webkit-scrollbar { width: 6px; }
-    .dropdown-body::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
+    @keyframes popIn {
+      0% { opacity: 0; transform: translate(-50%, -45%) scale(0.95); }
+      100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
 
-    .format-category { margin-bottom: 16px; }
-    .format-category h5 { margin: 0 0 8px 0; color: var(--text-dim); text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
-    .format-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 8px; }
+    .dropdown-header { 
+      padding: 16px; border-bottom: 1px solid var(--border); 
+      background: var(--dropdown-bg); display: flex; gap: 10px; align-items: center;
+    }
+    .search-icon { color: var(--text-dim); font-size: 18px; margin-left: 4px; }
+    .dropdown-header input { 
+      width: 100%; padding: 10px 12px; border-radius: 6px; 
+      border: none; background: transparent; color: var(--text); 
+      outline: none; font-size: 15px;
+    }
+    .close-modal-btn { background: transparent; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; padding: 0 8px; }
+    .close-modal-btn:hover { color: var(--danger); }
+
+    /* The New Split Body */
+    .dropdown-split-body {
+      display: flex;
+      flex-grow: 1;
+      height: 450px; /* Fixed internal height to prevent modal jumping */
+    }
+
+    /* Left Sidebar */
+    .category-sidebar {
+      width: 180px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 10px 0;
+    }
+    .category-sidebar::-webkit-scrollbar { width: 4px; }
+    .category-sidebar::-webkit-scrollbar-thumb { background: var(--text-dim); border-radius: 4px; }
+
+    .cat-tab {
+      padding: 14px 16px;
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-dim);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: 0.2s;
+    }
+    .cat-tab:hover { background: rgba(255, 255, 255, 0.05); color: var(--text); }
+    .cat-tab.active {
+      color: var(--text);
+      font-weight: 600;
+      background: rgba(0, 255, 247, 0.05);
+      border-left: 3px solid var(--neon);
+    }
+    .cat-tab.hidden { display: none; }
+
+    /* Right Grid Area */
+    .format-display-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--dropdown-bg);
+      overflow: hidden;
+    }
+
+    .format-grid { 
+      padding: 24px; 
+      overflow-y: auto; 
+      flex-grow: 1;
+      display: grid; 
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); 
+      gap: 12px; 
+      align-content: start;
+    }
+    .format-grid::-webkit-scrollbar { width: 8px; }
+    .format-grid::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 4px; }
     
     .format-pill {
       background: var(--card); border: 1px solid var(--border); border-radius: 6px;
-      padding: 8px 4px; text-align: center; font-size: 12px; cursor: pointer;
-      transition: 0.2s; color: var(--text); font-weight: 600; text-transform: lowercase;
+      padding: 14px 4px; text-align: center; font-size: 13px; cursor: pointer;
+      transition: 0.2s; color: var(--text); font-weight: 600; text-transform: uppercase;
     }
-    .format-pill:hover { background: rgba(0, 255, 247, 0.1); border-color: var(--neon); color: var(--neon); }
+    .format-pill:hover { background: var(--card-hover); border-color: var(--neon); color: var(--neon); transform: translateY(-2px);}
     .format-pill.selected { background: var(--neon); color: #000; border-color: var(--neon); }
 
-    .dropdown-footer { padding: 12px; border-top: 1px solid var(--border); background: var(--card); display: flex; gap: 8px; }
-    .dropdown-footer input { flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); outline: none; }
-    .dropdown-footer input:focus { border-color: var(--neon); }
+    /* The Dedicated Description Panel (Fixes Tooltip Clipping) */
+    .format-desc-panel {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      background: var(--sidebar-bg);
+      color: var(--text-dim);
+      font-size: 13px;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      transition: 0.2s;
+    }
+    .format-desc-panel strong { color: var(--neon); text-transform: uppercase; margin-right: 8px; font-size: 14px; }
 
-    /* Settings UI */
-    .settings-group { display: none; padding-top: 10px; }
-    .settings-group.active { display: block; }
-    .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 13px; }
-    .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .toggle input { accent-color: var(--neon); width: 16px; height: 16px; cursor: pointer;}
+    .dropdown-footer { padding: 16px; border-top: 1px solid var(--border); background: var(--sidebar-bg); display: flex; gap: 8px; }
+    .dropdown-footer input { flex-grow: 1; padding: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); outline: none; }
+    .dropdown-footer input:focus { border-color: var(--neon); }
 
     /* Buttons */
     .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
     .btn-primary { background: linear-gradient(90deg, var(--neon), var(--neon-alt)); color: #000; margin-top: 20px; }
     .btn-primary:hover { box-shadow: 0 0 20px rgba(0, 255, 247, 0.4); }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-small { width: auto; padding: 6px 12px; font-size: 12px; background: var(--panel); color: var(--text); border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+    .btn-small { width: auto; padding: 8px 16px; font-size: 13px; background: var(--panel); color: var(--text); border: 1px solid var(--border); cursor: pointer; transition: 0.2s; border-radius: 6px;}
     .btn-small:hover { border-color: var(--neon); color: var(--neon); }
     .btn-outline { background: transparent; border: 1px solid var(--neon); color: var(--neon); }
     .btn-outline:hover { background: rgba(0, 255, 247, 0.1); }
 
     .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; background: rgba(0, 255, 247, 0.1); color: var(--neon); margin-bottom: 15px;}
-    
-    /* Sidebar */
     .history-list { font-size: 12px; color: var(--text-dim); }
     .history-item { padding: 8px 0; border-bottom: 1px dashed var(--border); }
     
-    /* Toast */
     #toast { position: fixed; bottom: -50px; left: 50%; transform: translateX(-50%); background: var(--card); color: var(--neon); padding: 12px 24px; border-radius: 8px; border: 1px solid var(--neon); transition: 0.3s; box-shadow: 0 0 20px rgba(0,0,0,0.5); z-index: 1000; opacity: 0; }
     #toast.show { bottom: 20px; opacity: 1; }
 
-    @media (max-width: 768px) { .grid-container { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) { 
+      .grid-container { grid-template-columns: 1fr; } 
+      .dropdown-split-body { flex-direction: column; }
+      .category-sidebar { width: 100%; height: auto; display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 0;}
+      .cat-tab { white-space: nowrap; border-left: none !important; border-bottom: 3px solid transparent; }
+      .cat-tab.active { border-bottom: 3px solid var(--neon); }
+      .cat-tab span { display: none; } /* hide arrow on mobile */
+    }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <div class="logo">OmniConvert<span style="color:var(--text)">Pro</span></div>
+    <div class="logo">NexusConvert<span style="color:var(--text)">Pro</span></div>
     <button class="theme-btn" id="themeToggle">Light Mode</button>
   </div>
 
@@ -172,7 +259,7 @@
       <label class="drop-zone" id="dropZone" for="fileInput">
         <div class="drop-icon">📥</div>
         <div><strong>Drag & Drop files here</strong></div>
-        <div style="font-size: 12px; color: var(--text-dim); margin-top: 8px;">Supports Audio, Video, Images, & Docs</div>
+        <div style="font-size: 12px; color: var(--text-dim); margin-top: 8px;">Supports Audio, Video, Images, Docs & Code</div>
       </label>
       <input type="file" id="fileInput" multiple style="display: none;" />
 
@@ -182,25 +269,33 @@
         <button class="mega-select-btn" id="megaSelectBtn">
           Convert to format: <span id="selectedFormatDisplay">Choose...</span>
         </button>
-        
-        <div class="mega-dropdown" id="megaDropdown">
-          <div class="dropdown-header">
-            <input type="text" id="formatSearch" placeholder="Search formats (e.g. mp4, pdf)..." autocomplete="off">
-          </div>
-          <div class="dropdown-body" id="dropdownBody">
-            </div>
-          <div class="dropdown-footer">
-            <input type="text" id="customFormatInput" placeholder="Custom ext (e.g. psd)" autocomplete="off">
-            <button class="btn-small" id="applyCustomBtn">Apply</button>
-          </div>
-        </div>
       </div>
 
-      <div id="settingsContainer">
-        <div class="settings-group" id="audioSettings">
-          <div class="setting-row">
-            <label class="toggle"><input type="checkbox" id="forceMono"> Mixdown to Mono (Real Audio Processing)</label>
+      <div class="mega-backdrop" id="megaBackdrop"></div>
+      <div class="mega-dropdown" id="megaDropdown">
+        <div class="dropdown-header">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="formatSearch" placeholder="Search formats (e.g. cepp, mp4, json)..." autocomplete="off">
+          <button class="close-modal-btn" id="closeModalBtn">×</button>
+        </div>
+        
+        <div class="dropdown-split-body">
+          <div class="category-sidebar" id="categorySidebar">
+            </div>
+          
+          <div class="format-display-area">
+            <div class="format-grid" id="formatGrid">
+              </div>
+            
+            <div class="format-desc-panel" id="formatDescPanel">
+              Hover over a format to see its details.
+            </div>
           </div>
+        </div>
+
+        <div class="dropdown-footer">
+          <input type="text" id="customFormatInput" placeholder="Custom ext (e.g. psd)" autocomplete="off">
+          <button class="btn-small" id="applyCustomBtn">Apply Custom</button>
         </div>
       </div>
 
@@ -221,17 +316,168 @@
   <div id="toast">Message goes here</div>
 
   <script>
-    // --- Massive Format Dictionary ---
-    const allFormats = {
-      "Audio": ["wav", "mp3", "ogg", "flac", "aac", "m4a", "wma", "opus", "aiff", "alac"],
-      "Video": ["mp4", "webm", "mkv", "avi", "mov", "wmv", "flv", "m4v", "ts", "3gp", "mpeg"],
-      "Image": ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp", "tiff", "ico", "heic", "raw", "eps"],
-      "Document": ["pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "ppt", "pptx", "md", "csv", "epub"],
-      "Archive": ["zip", "rar", "7z", "tar", "gz", "bz2"]
-    };
+    // --- Massive Format Dictionary with 100% Coverage Descriptions ---
+    const formatConfig = [
+      {
+        category: "TSFAlex",
+        desc: "Proprietary formats for TSFAlex applications.",
+        formats: [
+          { id: "allf", info: "Universal Archive: Stores multiple different file types (.txt, .py, .json, .mp4) in one unified file." },
+          { id: "cepp", info: "Project Data: Stores workspaces and settings for the Premium Website Code Editor." }
+        ]
+      },
+      {
+        category: "Audio",
+        formats: [
+          {id: "wav", info: "Waveform Audio File Format: Lossless, uncompressed audio."},
+          {id: "mp3", info: "MPEG Audio Layer III: The universal standard for compressed audio."},
+          {id: "ogg", info: "Ogg Vorbis: Open source, highly efficient compressed audio."},
+          {id: "flac", info: "Free Lossless Audio Codec: High fidelity audio compression without quality loss."},
+          {id: "aac", info: "Advanced Audio Coding: Successor to MP3, used by Apple and YouTube."},
+          {id: "m4a", info: "MPEG-4 Audio: Audio-only container commonly used by iTunes."},
+          {id: "wma", info: "Windows Media Audio: Proprietary audio codec by Microsoft."},
+          {id: "opus", info: "Opus Interactive Audio Codec: Extremely low latency, used for VoIP."},
+          {id: "aiff", info: "Audio Interchange File Format: Uncompressed standard used by Apple."},
+          {id: "alac", info: "Apple Lossless Audio Codec: Apple's alternative to FLAC."},
+          {id: "amr", info: "Adaptive Multi-Rate: Optimized for spoken voice recordings."},
+          {id: "mid", info: "MIDI File: Contains musical notes and timing, not actual sound waves."},
+          {id: "midi", info: "MIDI File: Contains musical notes and timing, not actual sound waves."}
+        ]
+      },
+      {
+        category: "Video",
+        formats: [
+          {id: "mp4", info: "MPEG-4 Part 14: The most widely supported video format globally."},
+          {id: "webm", info: "WebM: Royalty-free HTML5 video format sponsored by Google."},
+          {id: "mkv", info: "Matroska Video: Flexible container that can hold unlimited video/audio tracks."},
+          {id: "avi", info: "Audio Video Interleave: Older, widely used Windows video format."},
+          {id: "mov", info: "QuickTime Movie: High-quality format developed by Apple."},
+          {id: "wmv", info: "Windows Media Video: Highly compressed format by Microsoft."},
+          {id: "flv", info: "Flash Video: Legacy format used for older web video streaming."},
+          {id: "m4v", info: "MPEG-4 Video: Apple format, similar to MP4 but can have DRM."},
+          {id: "ts", info: "MPEG Transport Stream: Used in broadcast systems like DVB and ATSC."},
+          {id: "3gp", info: "3GPP: Legacy multimedia format optimized for older mobile phones."},
+          {id: "mpeg", info: "MPEG-1/2 Video: Older standard for VCD and DVD video."},
+          {id: "vob", info: "Video Object: Container format in DVD-Video media."},
+          {id: "ogv", info: "Ogg Video: Open source video format for HTML5."}
+        ]
+      },
+      {
+        category: "Image",
+        formats: [
+          {id: "png", info: "Portable Network Graphics: Lossless image format supporting transparency."},
+          {id: "jpg", info: "Joint Photographic Experts Group: Standard compressed image for photos."},
+          {id: "jpeg", info: "Alternative extension for JPG images."},
+          {id: "webp", info: "Web Picture format: Modern format by Google with superior compression."},
+          {id: "gif", info: "Graphics Interchange Format: Supports simple animations and transparency."},
+          {id: "svg", info: "Scalable Vector Graphics: XML-based vector image that scales infinitely."},
+          {id: "bmp", info: "Bitmap: Uncompressed, large file size image format."},
+          {id: "tiff", info: "Tagged Image File Format: High quality format favored by photographers and publishers."},
+          {id: "ico", info: "Icon File: Used for website favicons and Windows app icons."},
+          {id: "heic", info: "High Efficiency Image Container: Modern space-saving format used by iOS."},
+          {id: "raw", info: "Raw Image Data: Unprocessed data from a digital camera sensor."},
+          {id: "eps", info: "Encapsulated PostScript: Vector format often used in professional printing."},
+          {id: "psd", info: "Adobe Photoshop Document: Native project file saving layers and edits."},
+          {id: "ai", info: "Adobe Illustrator Artwork: Native vector project file."},
+          {id: "indd", info: "Adobe InDesign Document: Desktop publishing layout file."},
+          {id: "avif", info: "AV1 Image File Format: Next-gen compression superior to WebP and JPEG."},
+          {id: "ps", info: "PostScript: Page description language used primarily for printing."}
+        ]
+      },
+      {
+        category: "Document",
+        formats: [
+          {id: "pdf", info: "Portable Document Format: Fixed-layout document standard by Adobe."},
+          {id: "doc", info: "Microsoft Word Document: Legacy binary word processing format."},
+          {id: "docx", info: "Microsoft Word Open XML: Modern, compressed Word format."},
+          {id: "txt", info: "Plain Text: Unformatted text readable by any system."},
+          {id: "rtf", info: "Rich Text Format: Basic styled text compatible across platforms."},
+          {id: "odt", info: "OpenDocument Text: Open-source alternative to DOCX."},
+          {id: "xls", info: "Microsoft Excel Spreadsheet: Legacy binary spreadsheet format."},
+          {id: "xlsx", info: "Microsoft Excel Open XML: Modern, compressed spreadsheet format."},
+          {id: "ppt", info: "Microsoft PowerPoint: Legacy binary presentation format."},
+          {id: "pptx", info: "Microsoft PowerPoint Open XML: Modern presentation format."},
+          {id: "md", info: "Markdown: Lightweight markup language for formatting text."},
+          {id: "csv", info: "Comma-Separated Values: Plain text table data."},
+          {id: "epub", info: "Electronic Publication: Standard e-book format."},
+          {id: "mobi", info: "Mobipocket e-book: Legacy format primarily for Amazon Kindle."},
+          {id: "azw3", info: "Amazon Kindle Format 8: Advanced e-book format for Kindle."},
+          {id: "pages", info: "Apple Pages: Word processing document for macOS."},
+          {id: "numbers", info: "Apple Numbers: Spreadsheet document for macOS."},
+          {id: "key", info: "Apple Keynote: Presentation document for macOS."}
+        ]
+      },
+      {
+        category: "Web & Code",
+        formats: [
+          {id: "html", info: "HyperText Markup Language: The skeleton of all web pages."},
+          {id: "css", info: "Cascading Style Sheets: Styles and layouts for web pages."},
+          {id: "js", info: "JavaScript: The programming language of the web."},
+          {id: "ts", info: "TypeScript: JavaScript with strict syntax typing."},
+          {id: "jsx", info: "JavaScript XML: Used for React component rendering."},
+          {id: "tsx", info: "TypeScript XML: Used for React components with type safety."},
+          {id: "php", info: "PHP: Server-side scripting language for web development."},
+          {id: "py", info: "Python script: Widely used general-purpose programming language."},
+          {id: "java", info: "Java Source Code: Object-oriented programming language."},
+          {id: "c", info: "C Source Code: Low-level procedural programming language."},
+          {id: "cpp", info: "C++ Source Code: Extension of C with object-oriented features."},
+          {id: "cs", info: "C# Source Code: Microsoft's language for .NET framework."},
+          {id: "go", info: "Go language: Compiled systems language developed by Google."},
+          {id: "rb", info: "Ruby script: Dynamic, object-oriented programming language."},
+          {id: "swift", info: "Swift Source Code: Apple's programming language for iOS/macOS."},
+          {id: "sql", info: "Structured Query Language: Used for interacting with databases."},
+          {id: "sh", info: "Shell Script: Command-line script for Unix/Linux systems."},
+          {id: "bat", info: "Batch File: Command-line script for Windows systems."}
+        ]
+      },
+      {
+        category: "Data & Config",
+        formats: [
+          {id: "json", info: "JavaScript Object Notation: Standard lightweight data-interchange format."},
+          {id: "xml", info: "eXtensible Markup Language: General-purpose data markup language."},
+          {id: "yaml", info: "YAML Ain't Markup Language: Human-readable data serialization format."},
+          {id: "yml", info: "Alternative extension for YAML files."},
+          {id: "ini", info: "Initialization File: Simple text-based configuration file."},
+          {id: "env", info: "Environment Variables: Stores secret keys and system variables."},
+          {id: "toml", info: "Tom's Obvious, Minimal Language: Config file format."},
+          {id: "sqlite", info: "SQLite Database: Self-contained, serverless SQL database engine."},
+          {id: "db", info: "Generic Database File: Used by various applications to store data."}
+        ]
+      },
+      {
+        category: "Archive",
+        formats: [
+          {id: "zip", info: "ZIP Archive: The most common lossless data compression format."},
+          {id: "rar", info: "Roshal Archive: Proprietary compression format known for tight packing."},
+          {id: "7z", info: "7-Zip Archive: Open architecture compression with high ratio."},
+          {id: "tar", info: "Tape Archive: Groups files together without compressing them."},
+          {id: "gz", info: "Gzip Archive: Compression format widely used on Linux systems."},
+          {id: "bz2", info: "Bzip2 Archive: High-efficiency compression algorithm."},
+          {id: "iso", info: "ISO Image: Perfect digital copy of an optical disc (CD/DVD)."},
+          {id: "cab", info: "Cabinet File: Microsoft's native compressed archive format."},
+          {id: "tgz", info: "Tarball Gzip: A TAR archive compressed with Gzip."}
+        ]
+      },
+      {
+        category: "3D & CAD",
+        formats: [
+          {id: "obj", info: "Wavefront OBJ: Standard 3D geometry definition file."},
+          {id: "fbx", info: "Filmbox: Popular 3D format that supports animation and rigs."},
+          {id: "stl", info: "Stereolithography: Standard format used for 3D printing."},
+          {id: "blend", info: "Blender Project: Native project file for Blender 3D software."},
+          {id: "gltf", info: "GL Transmission Format: The 'JPEG of 3D', optimized for web viewing."},
+          {id: "glb", info: "GLB: The binary, single-file version of GLTF."},
+          {id: "step", info: "Standard for the Exchange of Product model data: Common CAD format."},
+          {id: "iges", info: "Initial Graphics Exchange Specification: Older vendor-neutral CAD format."},
+          {id: "dwg", info: "AutoCAD Drawing: Proprietary format for 2D/3D CAD data."},
+          {id: "dxf", info: "Drawing Exchange Format: Open alternative to DWG for CAD systems."}
+        ]
+      }
+    ];
 
     let globalTargetFormat = null;
     let activeFiles = [];
+    let currentCategory = formatConfig[0].category;
 
     // --- DOM Elements ---
     const dropZone = document.getElementById('dropZone');
@@ -240,91 +486,137 @@
     const startBtn = document.getElementById('startBtn');
     const historyList = document.getElementById('historyList');
     const downloadZipBtn = document.getElementById('downloadZipBtn');
-    const themeToggle = document.getElementById('themeToggle');
-    const audioSettings = document.getElementById('audioSettings');
     const formatContainer = document.getElementById('formatContainer');
     
-    // Mega Menu Elements
+    // Modal & Split UI Elements
     const megaSelectBtn = document.getElementById('megaSelectBtn');
     const megaDropdown = document.getElementById('megaDropdown');
-    const dropdownBody = document.getElementById('dropdownBody');
+    const megaBackdrop = document.getElementById('megaBackdrop');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    
+    const categorySidebar = document.getElementById('categorySidebar');
+    const formatGrid = document.getElementById('formatGrid');
+    const formatDescPanel = document.getElementById('formatDescPanel');
     const formatSearch = document.getElementById('formatSearch');
+    
     const selectedFormatDisplay = document.getElementById('selectedFormatDisplay');
     const customFormatInput = document.getElementById('customFormatInput');
     const applyCustomBtn = document.getElementById('applyCustomBtn');
 
-    // --- Build the Mega Grid ---
-    function renderFormatGrid(searchQuery = "") {
-      dropdownBody.innerHTML = '';
+    // --- SPLIT MENU LOGIC ---
+    function renderSplitMenu(searchQuery = "") {
       const query = searchQuery.toLowerCase().trim();
+      
+      categorySidebar.innerHTML = '';
+      formatGrid.innerHTML = '';
+      let hasRenderedGrid = false;
+      let firstValidCategory = null;
 
-      for (const [category, formats] of Object.entries(allFormats)) {
-        // Filter formats based on search
-        const filtered = formats.filter(f => f.includes(query));
-        if (filtered.length === 0) continue;
-
-        const catDiv = document.createElement('div');
-        catDiv.className = 'format-category';
-        catDiv.innerHTML = `<h5>${category}</h5>`;
+      formatConfig.forEach((section) => {
+        // Find matching formats in this category
+        const filtered = section.formats.filter(f => f.id.includes(query));
         
-        const gridDiv = document.createElement('div');
-        gridDiv.className = 'format-grid';
+        // Build Sidebar Tab
+        const tab = document.createElement('div');
+        tab.className = `cat-tab ${section.category === currentCategory ? 'active' : ''}`;
+        if (filtered.length === 0) tab.classList.add('hidden'); // Hide if search finds nothing here
+        
+        tab.innerHTML = `${section.category} <span>›</span>`;
+        tab.onclick = () => {
+          currentCategory = section.category;
+          renderSplitMenu(formatSearch.value);
+        };
+        categorySidebar.appendChild(tab);
 
-        filtered.forEach(ext => {
-          const pill = document.createElement('div');
-          pill.className = 'format-pill';
-          if (globalTargetFormat === ext) pill.classList.add('selected');
-          pill.innerText = `.${ext}`;
-          pill.onclick = () => selectFormat(ext);
-          gridDiv.appendChild(pill);
-        });
+        // Keep track of the first category that actually has search results
+        if (filtered.length > 0 && !firstValidCategory) firstValidCategory = section.category;
 
-        catDiv.appendChild(gridDiv);
-        dropdownBody.appendChild(catDiv);
-      }
+        // Render Grid for the Active Category
+        if (section.category === currentCategory && filtered.length > 0) {
+          hasRenderedGrid = true;
+          filtered.forEach(f => {
+            const pill = document.createElement('div');
+            pill.className = `format-pill ${globalTargetFormat === f.id ? 'selected' : ''}`;
+            pill.innerText = f.id;
+            
+            // Description Hover Logic
+            pill.onmouseenter = () => {
+              formatDescPanel.innerHTML = `<strong>.${f.id}</strong> ${f.info}`;
+              formatDescPanel.style.color = "var(--text)";
+            };
+            pill.onmouseleave = () => {
+              formatDescPanel.innerHTML = "Hover over a format to see its details.";
+              formatDescPanel.style.color = "var(--text-dim)";
+            };
 
-      if (dropdownBody.innerHTML === '') {
-        dropdownBody.innerHTML = `<div style="text-align:center; color:var(--text-dim); font-size:12px; padding:20px;">No presets found. Use the custom input below.</div>`;
+            pill.onclick = () => selectFormat(f.id);
+            formatGrid.appendChild(pill);
+          });
+        }
+      });
+
+      // Smart Search: If the current tab has no results, jump to the first tab that does!
+      if (!hasRenderedGrid && firstValidCategory) {
+        currentCategory = firstValidCategory;
+        renderSplitMenu(formatSearch.value); // Re-render with new tab selected
+      } else if (!hasRenderedGrid && !firstValidCategory) {
+        formatGrid.innerHTML = `<div style="grid-column: 1/-1; text-align:center; padding-top:40px; color:var(--text-dim);">No formats match your search.</div>`;
       }
     }
 
     function selectFormat(ext) {
       globalTargetFormat = ext.toLowerCase().replace('.', '');
       selectedFormatDisplay.innerText = `.${globalTargetFormat}`;
-      megaDropdown.classList.remove('active');
-      renderFormatGrid(); // re-render to show active state
+      closeModal();
     }
 
-    // Mega Menu Interactions
-    megaSelectBtn.addEventListener('click', () => {
-      megaDropdown.classList.toggle('active');
-      if (megaDropdown.classList.contains('active')) formatSearch.focus();
-    });
+    // Modal Interactions
+    function openModal() {
+      megaDropdown.classList.add('active');
+      megaBackdrop.classList.add('active');
+      formatSearch.focus();
+      
+      // Auto-detect category based on uploaded file
+      if(activeFiles.length > 0 && !globalTargetFormat) {
+        const ext = activeFiles[0].name.split('.').pop().toLowerCase();
+        for (const section of formatConfig) {
+          if (section.formats.some(f => f.id === ext)) {
+            currentCategory = section.category;
+            break;
+          }
+        }
+      }
+      renderSplitMenu();
+    }
 
-    formatSearch.addEventListener('input', (e) => renderFormatGrid(e.target.value));
+    function closeModal() {
+      megaDropdown.classList.remove('active');
+      megaBackdrop.classList.remove('active');
+      formatSearch.value = '';
+      formatDescPanel.innerHTML = "Hover over a format to see its details.";
+      renderSplitMenu();
+    }
+
+    megaSelectBtn.addEventListener('click', openModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    megaBackdrop.addEventListener('click', closeModal);
+    formatSearch.addEventListener('input', (e) => renderSplitMenu(e.target.value));
 
     applyCustomBtn.addEventListener('click', () => {
       const val = customFormatInput.value.trim();
       if (val) selectFormat(val);
     });
-
     customFormatInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter' && customFormatInput.value.trim()) selectFormat(customFormatInput.value.trim());
     });
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-      if (!formatContainer.contains(e.target)) megaDropdown.classList.remove('active');
-    });
+    renderSplitMenu(); // Initialize
 
-    // Initialize Grid
-    renderFormatGrid();
-
-    // --- Standard UI Logic ---
-    themeToggle.addEventListener('click', () => {
+    // --- Standard Application Logic ---
+    document.getElementById('themeToggle').addEventListener('click', (e) => {
       const isLight = document.body.getAttribute('data-theme') === 'light';
       document.body.setAttribute('data-theme', isLight ? 'dark' : 'light');
-      themeToggle.innerText = isLight ? 'Light Mode' : 'Dark Mode';
+      e.target.innerText = isLight ? 'Light Mode' : 'Dark Mode';
     });
 
     function showToast(msg, isError = false) {
@@ -349,18 +641,20 @@
         activeFiles.push(f);
         addFileToUI(f);
       });
-      updateSettingsVisibility();
+      if(activeFiles.length > 0) {
+        startBtn.style.display = 'block';
+        formatContainer.style.display = 'block';
+      }
     }
 
     window.removeFile = function(index) {
       activeFiles.splice(index, 1);
-      renderQueue();
-      updateSettingsVisibility();
-    }
-
-    function renderQueue() {
       fileQueue.innerHTML = '';
       activeFiles.forEach((f, i) => addFileToUI(f, i));
+      if(activeFiles.length === 0) {
+        startBtn.style.display = 'none';
+        formatContainer.style.display = 'none';
+      }
     }
 
     function addFileToUI(file, index = activeFiles.length - 1) {
@@ -378,21 +672,7 @@
       fileQueue.appendChild(div);
     }
 
-    function updateSettingsVisibility() {
-      if(activeFiles.length === 0) {
-        startBtn.style.display = 'none';
-        formatContainer.style.display = 'none';
-        audioSettings.classList.remove('active');
-        return;
-      }
-      startBtn.style.display = 'block';
-      formatContainer.style.display = 'block';
-      const type = activeFiles[0].type;
-      audioSettings.classList.remove('active');
-      if(type.startsWith('audio/')) audioSettings.classList.add('active');
-    }
-
-    // --- ZIP Logic ---
+    // --- ZIP and Download Logic ---
     downloadZipBtn.addEventListener('click', async () => {
       if (activeFiles.length === 0) return showToast("No files in the queue to ZIP!", true);
       showToast("Packaging files into ZIP...");
@@ -402,7 +682,7 @@
         const zip = new JSZip();
         activeFiles.forEach(file => zip.file(file.name, file));
         const zipContent = await zip.generateAsync({ type: "blob" });
-        downloadBlob(zipContent, "OmniConvert_Batch.zip");
+        downloadBlob(zipContent, "NexusConvert_Batch.zip");
         showToast("ZIP Downloaded Successfully!");
       } catch (err) {
         showToast("Failed to create ZIP.", true);
@@ -412,11 +692,10 @@
       }
     });
 
-    // --- Main Conversion ---
     startBtn.onclick = async () => {
       if(activeFiles.length === 0) return;
       if(!globalTargetFormat) {
-        megaDropdown.classList.add('active');
+        openModal();
         return showToast("Please select a target format first!", true);
       }
 
@@ -430,7 +709,10 @@
           logHistory(`${file.name} ➔ ${globalTargetFormat.toUpperCase()}`);
         }
         showToast("Batch Conversion Complete!");
-        activeFiles = []; renderQueue(); updateSettingsVisibility();
+        activeFiles = []; 
+        fileQueue.innerHTML = '';
+        startBtn.style.display = 'none';
+        formatContainer.style.display = 'none';
       } catch (err) {
         showToast("Error processing file.", true);
       } finally {
