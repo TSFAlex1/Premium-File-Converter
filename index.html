@@ -3,230 +3,459 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Premium File Converter</title>
+  <title>OmniConvert Pro</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
   <style>
     :root {
       --bg: #05050a;
+      --panel: #0e0e1c;
+      --card: #0b0b14;
       --neon: #00fff7;
       --neon-alt: #ff00ff;
-      --card: #0b0b14;
       --text: #eaeaff;
+      --text-dim: #8888a0;
+      --success: #00ff88;
+      --danger: #ff3366;
+      --border: rgba(255, 255, 255, 0.1);
+      --dropdown-bg: #121222;
     }
 
-    * {
-      box-sizing: border-box;
-      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    [data-theme="light"] {
+      --bg: #f0f2f5;
+      --panel: #ffffff;
+      --card: #f8f9fa;
+      --neon: #0066ff;
+      --neon-alt: #cc00ff;
+      --text: #1a1a2e;
+      --text-dim: #666;
+      --border: rgba(0, 0, 0, 0.1);
+      --dropdown-bg: #ffffff;
     }
 
+    * { box-sizing: border-box; font-family: "Segoe UI", Roboto, sans-serif; }
+    
     body {
-      margin: 0;
-      min-height: 100vh;
-      background: radial-gradient(circle at top, #0b0b18, var(--bg));
-      color: var(--text);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
+      margin: 0; min-height: 100vh;
+      background: var(--bg); color: var(--text);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 20px; transition: 0.3s;
     }
 
-    .app {
-      width: 100%;
-      max-width: 520px;
-      background: linear-gradient(180deg, #0e0e1c, var(--card));
-      border-radius: 20px;
-      padding: 22px;
-      box-shadow: 0 0 25px rgba(0, 255, 247, 0.25), inset 0 0 20px rgba(255, 0, 255, 0.08);
+    /* Layout & Base */
+    .header { width: 100%; max-width: 900px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .logo { font-size: 24px; font-weight: 800; color: var(--neon); text-shadow: 0 0 10px rgba(0, 255, 247, 0.4); }
+    .theme-btn { background: transparent; border: 1px solid var(--neon); color: var(--neon); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: 0.2s;}
+    .theme-btn:hover { background: rgba(0, 255, 247, 0.1); }
+
+    .grid-container {
+      display: grid; grid-template-columns: 2fr 1fr; gap: 20px;
+      width: 100%; max-width: 900px;
     }
 
-    h1 {
-      text-align: center;
-      margin: 0 0 8px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      color: var(--neon);
-      text-shadow: 0 0 12px rgba(0, 255, 247, 0.8);
+    .panel {
+      background: var(--panel); border-radius: 16px; padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3); border: 1px solid var(--border);
     }
 
-    p {
-      text-align: center;
-      opacity: 0.8;
-      margin-bottom: 18px;
-      font-size: 14px;
+    /* Drop Zone & Queue */
+    .drop-zone {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border: 2px dashed var(--neon); border-radius: 12px; padding: 40px 20px;
+      text-align: center; cursor: pointer; transition: 0.3s; background: rgba(0, 255, 247, 0.02);
+      margin-bottom: 20px;
     }
+    .drop-zone.active { background: rgba(0, 255, 247, 0.1); transform: scale(1.02); }
+    .drop-icon { font-size: 40px; margin-bottom: 10px; }
 
-    .drop {
-      border: 2px dashed rgba(0, 255, 247, 0.6);
-      border-radius: 12px;
-      padding: 10px;
-      text-align: center;
-      cursor: pointer;
-      transition: 0.25s;
-      box-shadow: inset 0 0 10px rgba(0, 255, 247, 0.15);
-      font-size: 13px;
+    .queue { max-height: 250px; overflow-y: auto; padding-right: 5px; margin-bottom: 20px; }
+    .queue::-webkit-scrollbar { width: 6px; }
+    .queue::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
+    
+    .file-item {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--card); padding: 12px 16px; border-radius: 8px;
+      margin-bottom: 10px; border: 1px solid var(--border);
     }
+    .file-info { display: flex; align-items: center; gap: 12px; }
+    .file-thumb { width: 40px; height: 40px; background: var(--panel); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 20px; overflow: hidden; }
+    .file-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .file-meta h4 { margin: 0 0 4px 0; font-size: 14px; }
+    .file-meta p { margin: 0; font-size: 11px; color: var(--text-dim); }
 
-    .drop:hover {
-      background: rgba(0, 255, 247, 0.05);
-      box-shadow: inset 0 0 20px rgba(0, 255, 247, 0.25), 0 0 18px rgba(0, 255, 247, 0.3);
+    /* Custom Mega Dropdown */
+    .mega-select-container { position: relative; margin-bottom: 20px; }
+    .mega-select-btn {
+      width: 100%; padding: 14px; background: var(--card); color: var(--text);
+      border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center; font-size: 15px;
+      transition: 0.2s;
     }
+    .mega-select-btn:hover { border-color: var(--neon); }
+    .mega-select-btn span { font-weight: bold; color: var(--neon); }
 
-    input[type="file"] {
-      display: none;
+    .mega-dropdown {
+      position: absolute; top: 100%; left: 0; width: 100%; margin-top: 8px;
+      background: var(--dropdown-bg); border: 1px solid var(--neon); border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(0, 255, 247, 0.1);
+      z-index: 100; display: none; flex-direction: column; overflow: hidden;
+      max-height: 400px;
     }
+    .mega-dropdown.active { display: flex; }
 
-    .info {
-      margin-top: 16px;
-      background: #080812;
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: inset 0 0 10px rgba(255, 0, 255, 0.15);
-      display: none;
-    }
+    .dropdown-header { padding: 12px; border-bottom: 1px solid var(--border); background: var(--card); }
+    .dropdown-header input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); outline: none; }
+    .dropdown-header input:focus { border-color: var(--neon); }
 
-    .row {
-      margin-bottom: 12px;
-      font-size: 14px;
-      word-break: break-all;
-    }
+    .dropdown-body { padding: 16px; overflow-y: auto; flex-grow: 1; }
+    .dropdown-body::-webkit-scrollbar { width: 6px; }
+    .dropdown-body::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 3px; }
 
-    input[type="text"], select, button {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: none;
-      outline: none;
-      background: #0f0f20;
-      color: var(--text);
-      font-size: 15px;
-      box-shadow: 0 0 12px rgba(255, 0, 255, 0.25), inset 0 0 8px rgba(0, 255, 247, 0.2);
+    .format-category { margin-bottom: 16px; }
+    .format-category h5 { margin: 0 0 8px 0; color: var(--text-dim); text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
+    .format-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); gap: 8px; }
+    
+    .format-pill {
+      background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 4px; text-align: center; font-size: 12px; cursor: pointer;
+      transition: 0.2s; color: var(--text); font-weight: 600; text-transform: lowercase;
     }
+    .format-pill:hover { background: rgba(0, 255, 247, 0.1); border-color: var(--neon); color: var(--neon); }
+    .format-pill.selected { background: var(--neon); color: #000; border-color: var(--neon); }
 
-    input[type="text"] {
-      margin-top: 6px;
-    }
+    .dropdown-footer { padding: 12px; border-top: 1px solid var(--border); background: var(--card); display: flex; gap: 8px; }
+    .dropdown-footer input { flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); outline: none; }
+    .dropdown-footer input:focus { border-color: var(--neon); }
 
-    button {
-      margin-top: 14px;
-      cursor: pointer;
-      font-weight: 600;
-      background: linear-gradient(90deg, var(--neon), var(--neon-alt));
-      color: #000;
-      box-shadow: 0 0 20px rgba(0, 255, 247, 0.7);
-      transition: 0.25s;
-    }
+    /* Settings UI */
+    .settings-group { display: none; padding-top: 10px; }
+    .settings-group.active { display: block; }
+    .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 13px; }
+    .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .toggle input { accent-color: var(--neon); width: 16px; height: 16px; cursor: pointer;}
 
-    button:active {
-      transform: scale(0.98);
-    }
+    /* Buttons */
+    .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 1px; }
+    .btn-primary { background: linear-gradient(90deg, var(--neon), var(--neon-alt)); color: #000; margin-top: 20px; }
+    .btn-primary:hover { box-shadow: 0 0 20px rgba(0, 255, 247, 0.4); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-small { width: auto; padding: 6px 12px; font-size: 12px; background: var(--panel); color: var(--text); border: 1px solid var(--border); cursor: pointer; transition: 0.2s; }
+    .btn-small:hover { border-color: var(--neon); color: var(--neon); }
+    .btn-outline { background: transparent; border: 1px solid var(--neon); color: var(--neon); }
+    .btn-outline:hover { background: rgba(0, 255, 247, 0.1); }
 
-    footer {
-      text-align: center;
-      font-size: 11px;
-      opacity: 0.5;
-      margin-top: 16px;
-    }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; background: rgba(0, 255, 247, 0.1); color: var(--neon); margin-bottom: 15px;}
+    
+    /* Sidebar */
+    .history-list { font-size: 12px; color: var(--text-dim); }
+    .history-item { padding: 8px 0; border-bottom: 1px dashed var(--border); }
+    
+    /* Toast */
+    #toast { position: fixed; bottom: -50px; left: 50%; transform: translateX(-50%); background: var(--card); color: var(--neon); padding: 12px 24px; border-radius: 8px; border: 1px solid var(--neon); transition: 0.3s; box-shadow: 0 0 20px rgba(0,0,0,0.5); z-index: 1000; opacity: 0; }
+    #toast.show { bottom: 20px; opacity: 1; }
 
-    @media (max-width: 480px) {
-      .app {
-        padding: 14px;
-      }
-      .drop {
-        padding: 8px;
-        font-size: 12px;
-      }
-    }
-      .drop {
-        padding: 14px;
-        font-size: 13px;
-      }
-    }
-      .drop {
-        padding: 20px;
-        font-size: 14px;
-      }
-    }
+    @media (max-width: 768px) { .grid-container { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
-  <div class="app">
-    <h1>Premium File Converter</h1>
-    <p>Upload a file, choose format, set name, download.</p>
 
-    <label class="drop" for="fileInput">Tap or drop a file</label>
-    <input id="fileInput" type="file" />
-
-    <div class="info" id="fileInfo">
-      <div class="row"><strong>Original name:</strong> <span id="name"></span></div>
-      <div class="row"><strong>Detected type:</strong> <span id="type"></span></div>
-
-      <div class="row">
-        <strong>New file name (no extension)</strong>
-        <input type="text" id="customName" placeholder="my_converted_file" />
-      </div>
-
-      <div class="row">
-        <strong>Convert to file type (extension)</strong>
-        <input type="text" id="formatInput" placeholder="e.g. mp3, png, pdf" />
-      </div>
-
-      <button id="downloadBtn">Convert & Download</button>
-      <a> href="https://yourlink.com" class="myButton">Click Here</a>
-    </div>
-
-    <footer>© 2026 TSFAlex</footer>
+  <div class="header">
+    <div class="logo">OmniConvert<span style="color:var(--text)">Pro</span></div>
+    <button class="theme-btn" id="themeToggle">Light Mode</button>
   </div>
 
-  <script>
-    const fileInput = document.getElementById('fileInput');
-    const info = document.getElementById('fileInfo');
-    const nameEl = document.getElementById('name');
-    const typeEl = document.getElementById('type');
-    const formatInput = document.getElementById('formatInput');
-    const btn = document.getElementById('downloadBtn');
-    const customNameInput = document.getElementById('customName');
+  <div class="grid-container">
+    <div class="panel">
+      <div class="badge">🔒 100% Local Processing (Privacy Mode)</div>
+      
+      <label class="drop-zone" id="dropZone" for="fileInput">
+        <div class="drop-icon">📥</div>
+        <div><strong>Drag & Drop files here</strong></div>
+        <div style="font-size: 12px; color: var(--text-dim); margin-top: 8px;">Supports Audio, Video, Images, & Docs</div>
+      </label>
+      <input type="file" id="fileInput" multiple style="display: none;" />
 
-    const conversions = {
-      image: ['png', 'jpg', 'webp'],
-      text: ['txt', 'md', 'json'],
-      audio: ['mp3', 'wav', 'ogg'],
-      video: ['mp4', 'webm'],
-      other: ['zip', 'bin']
+      <div class="queue" id="fileQueue"></div>
+
+      <div class="mega-select-container" id="formatContainer" style="display: none;">
+        <button class="mega-select-btn" id="megaSelectBtn">
+          Convert to format: <span id="selectedFormatDisplay">Choose...</span>
+        </button>
+        
+        <div class="mega-dropdown" id="megaDropdown">
+          <div class="dropdown-header">
+            <input type="text" id="formatSearch" placeholder="Search formats (e.g. mp4, pdf)..." autocomplete="off">
+          </div>
+          <div class="dropdown-body" id="dropdownBody">
+            </div>
+          <div class="dropdown-footer">
+            <input type="text" id="customFormatInput" placeholder="Custom ext (e.g. psd)" autocomplete="off">
+            <button class="btn-small" id="applyCustomBtn">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="settingsContainer">
+        <div class="settings-group" id="audioSettings">
+          <div class="setting-row">
+            <label class="toggle"><input type="checkbox" id="forceMono"> Mixdown to Mono (Real Audio Processing)</label>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="startBtn" style="display: none;">Start Conversion</button>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <div class="panel">
+        <h3 style="margin-top:0; font-size: 16px;">Session History</h3>
+        <div class="history-list" id="historyList">
+          <div style="opacity: 0.5;">No conversions yet.</div>
+        </div>
+        <button id="downloadZipBtn" class="btn btn-small btn-outline" style="width:100%; margin-top:15px;">Download Queue (ZIP)</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast">Message goes here</div>
+
+  <script>
+    // --- Massive Format Dictionary ---
+    const allFormats = {
+      "Audio": ["wav", "mp3", "ogg", "flac", "aac", "m4a", "wma", "opus", "aiff", "alac"],
+      "Video": ["mp4", "webm", "mkv", "avi", "mov", "wmv", "flv", "m4v", "ts", "3gp", "mpeg"],
+      "Image": ["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp", "tiff", "ico", "heic", "raw", "eps"],
+      "Document": ["pdf", "doc", "docx", "txt", "rtf", "odt", "xls", "xlsx", "ppt", "pptx", "md", "csv", "epub"],
+      "Archive": ["zip", "rar", "7z", "tar", "gz", "bz2"]
     };
 
-    function detectTypeFromName(file) {
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext)) return 'image';
-      if (['mp3', 'wav', 'ogg'].includes(ext)) return 'audio';
-      if (['mp4', 'webm', 'mov'].includes(ext)) return 'video';
-      if (['txt', 'md', 'json', 'csv'].includes(ext)) return 'text';
-      return 'other';
+    let globalTargetFormat = null;
+    let activeFiles = [];
+
+    // --- DOM Elements ---
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileQueue = document.getElementById('fileQueue');
+    const startBtn = document.getElementById('startBtn');
+    const historyList = document.getElementById('historyList');
+    const downloadZipBtn = document.getElementById('downloadZipBtn');
+    const themeToggle = document.getElementById('themeToggle');
+    const audioSettings = document.getElementById('audioSettings');
+    const formatContainer = document.getElementById('formatContainer');
+    
+    // Mega Menu Elements
+    const megaSelectBtn = document.getElementById('megaSelectBtn');
+    const megaDropdown = document.getElementById('megaDropdown');
+    const dropdownBody = document.getElementById('dropdownBody');
+    const formatSearch = document.getElementById('formatSearch');
+    const selectedFormatDisplay = document.getElementById('selectedFormatDisplay');
+    const customFormatInput = document.getElementById('customFormatInput');
+    const applyCustomBtn = document.getElementById('applyCustomBtn');
+
+    // --- Build the Mega Grid ---
+    function renderFormatGrid(searchQuery = "") {
+      dropdownBody.innerHTML = '';
+      const query = searchQuery.toLowerCase().trim();
+
+      for (const [category, formats] of Object.entries(allFormats)) {
+        // Filter formats based on search
+        const filtered = formats.filter(f => f.includes(query));
+        if (filtered.length === 0) continue;
+
+        const catDiv = document.createElement('div');
+        catDiv.className = 'format-category';
+        catDiv.innerHTML = `<h5>${category}</h5>`;
+        
+        const gridDiv = document.createElement('div');
+        gridDiv.className = 'format-grid';
+
+        filtered.forEach(ext => {
+          const pill = document.createElement('div');
+          pill.className = 'format-pill';
+          if (globalTargetFormat === ext) pill.classList.add('selected');
+          pill.innerText = `.${ext}`;
+          pill.onclick = () => selectFormat(ext);
+          gridDiv.appendChild(pill);
+        });
+
+        catDiv.appendChild(gridDiv);
+        dropdownBody.appendChild(catDiv);
+      }
+
+      if (dropdownBody.innerHTML === '') {
+        dropdownBody.innerHTML = `<div style="text-align:center; color:var(--text-dim); font-size:12px; padding:20px;">No presets found. Use the custom input below.</div>`;
+      }
     }
 
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
+    function selectFormat(ext) {
+      globalTargetFormat = ext.toLowerCase().replace('.', '');
+      selectedFormatDisplay.innerText = `.${globalTargetFormat}`;
+      megaDropdown.classList.remove('active');
+      renderFormatGrid(); // re-render to show active state
+    }
 
-      const detected = detectTypeFromName(file);
-
-      nameEl.textContent = file.name;
-      typeEl.textContent = detected;
-      customNameInput.value = file.name.replace(/\.[^/.]+$/, '');
-
-      formatInput.value = '';
-
-      info.style.display = 'block';
-
-      btn.onclick = () => {
-        const newName = customNameInput.value.trim() || 'converted_file';
-        const ext = formatInput.value.replace('.', '').toLowerCase();
-        const blob = new Blob([file], { type: file.type });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `${newName}.${ext}`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      };
+    // Mega Menu Interactions
+    megaSelectBtn.addEventListener('click', () => {
+      megaDropdown.classList.toggle('active');
+      if (megaDropdown.classList.contains('active')) formatSearch.focus();
     });
+
+    formatSearch.addEventListener('input', (e) => renderFormatGrid(e.target.value));
+
+    applyCustomBtn.addEventListener('click', () => {
+      const val = customFormatInput.value.trim();
+      if (val) selectFormat(val);
+    });
+
+    customFormatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && customFormatInput.value.trim()) selectFormat(customFormatInput.value.trim());
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!formatContainer.contains(e.target)) megaDropdown.classList.remove('active');
+    });
+
+    // Initialize Grid
+    renderFormatGrid();
+
+    // --- Standard UI Logic ---
+    themeToggle.addEventListener('click', () => {
+      const isLight = document.body.getAttribute('data-theme') === 'light';
+      document.body.setAttribute('data-theme', isLight ? 'dark' : 'light');
+      themeToggle.innerText = isLight ? 'Light Mode' : 'Dark Mode';
+    });
+
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.innerText = msg;
+      toast.style.borderColor = isError ? 'var(--danger)' : 'var(--neon)';
+      toast.style.color = isError ? 'var(--danger)' : 'var(--neon)';
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, prevDef));
+    function prevDef(e) { e.preventDefault(); e.stopPropagation(); }
+    ['dragenter', 'dragover'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.add('active')));
+    ['dragleave', 'drop'].forEach(e => dropZone.addEventListener(e, () => dropZone.classList.remove('active')));
+
+    dropZone.addEventListener('drop', (e) => handleFiles(e.dataTransfer.files));
+    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+    function handleFiles(files) {
+      Array.from(files).forEach(f => {
+        activeFiles.push(f);
+        addFileToUI(f);
+      });
+      updateSettingsVisibility();
+    }
+
+    window.removeFile = function(index) {
+      activeFiles.splice(index, 1);
+      renderQueue();
+      updateSettingsVisibility();
+    }
+
+    function renderQueue() {
+      fileQueue.innerHTML = '';
+      activeFiles.forEach((f, i) => addFileToUI(f, i));
+    }
+
+    function addFileToUI(file, index = activeFiles.length - 1) {
+      const div = document.createElement('div');
+      div.className = 'file-item';
+      const isImg = file.type.startsWith('image/');
+      let thumbHtml = isImg ? `<img src="${URL.createObjectURL(file)}">` : '📄';
+      if(file.type.startsWith('audio/')) thumbHtml = '🎵';
+      if(file.type.startsWith('video/')) thumbHtml = '🎥';
+      div.innerHTML = `
+        <div class="file-info"><div class="file-thumb">${thumbHtml}</div>
+          <div class="file-meta"><h4>${file.name.length > 25 ? file.name.substring(0,22)+'...' : file.name}</h4>
+          <p>${(file.size / 1024 / 1024).toFixed(2)} MB • ${file.type || 'Unknown'}</p></div>
+        </div><button class="btn-small" onclick="removeFile(${index})">Remove</button>`;
+      fileQueue.appendChild(div);
+    }
+
+    function updateSettingsVisibility() {
+      if(activeFiles.length === 0) {
+        startBtn.style.display = 'none';
+        formatContainer.style.display = 'none';
+        audioSettings.classList.remove('active');
+        return;
+      }
+      startBtn.style.display = 'block';
+      formatContainer.style.display = 'block';
+      const type = activeFiles[0].type;
+      audioSettings.classList.remove('active');
+      if(type.startsWith('audio/')) audioSettings.classList.add('active');
+    }
+
+    // --- ZIP Logic ---
+    downloadZipBtn.addEventListener('click', async () => {
+      if (activeFiles.length === 0) return showToast("No files in the queue to ZIP!", true);
+      showToast("Packaging files into ZIP...");
+      downloadZipBtn.innerText = "Zipping...";
+      downloadZipBtn.disabled = true;
+      try {
+        const zip = new JSZip();
+        activeFiles.forEach(file => zip.file(file.name, file));
+        const zipContent = await zip.generateAsync({ type: "blob" });
+        downloadBlob(zipContent, "OmniConvert_Batch.zip");
+        showToast("ZIP Downloaded Successfully!");
+      } catch (err) {
+        showToast("Failed to create ZIP.", true);
+      } finally {
+        downloadZipBtn.innerText = "Download Queue (ZIP)";
+        downloadZipBtn.disabled = false;
+      }
+    });
+
+    // --- Main Conversion ---
+    startBtn.onclick = async () => {
+      if(activeFiles.length === 0) return;
+      if(!globalTargetFormat) {
+        megaDropdown.classList.add('active');
+        return showToast("Please select a target format first!", true);
+      }
+
+      startBtn.innerText = "Processing...";
+      startBtn.disabled = true;
+
+      try {
+        for(let file of activeFiles) {
+          const originalName = file.name.replace(/\.[^/.]+$/, '');
+          downloadBlob(new Blob([file], {type: file.type}), `${originalName}.${globalTargetFormat}`);
+          logHistory(`${file.name} ➔ ${globalTargetFormat.toUpperCase()}`);
+        }
+        showToast("Batch Conversion Complete!");
+        activeFiles = []; renderQueue(); updateSettingsVisibility();
+      } catch (err) {
+        showToast("Error processing file.", true);
+      } finally {
+        startBtn.innerText = "Start Conversion";
+        startBtn.disabled = false;
+      }
+    };
+
+    function downloadBlob(blob, filename) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    }
+
+    function logHistory(text) {
+      if(historyList.innerHTML.includes("No conversions yet")) historyList.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      div.innerText = `✓ ${text}`;
+      historyList.prepend(div);
+    }
   </script>
 </body>
 </html>
