@@ -5,13 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>NexusConvert Pro</title>
   
+  <link rel="icon" type="image/jpeg" href="icon.jpg" />
+  <link rel="apple-touch-icon" href="icon.jpg" />
+  <link rel="shortcut icon" href="icon.jpg" />
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
   <style>
     :root {
       --bg: #05050a;
       --panel: #0e0e1c;
-      --card: #14141f; /* Slightly lighter to match the image UI */
+      --card: #14141f;
       --card-hover: #1f1f2e;
       --neon: #00fff7;
       --neon-alt: #ff00ff;
@@ -49,6 +53,8 @@
 
     /* Layout & Base */
     .header { width: 100%; max-width: 900px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .app-icon { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; box-shadow: 0 0 10px rgba(0, 255, 247, 0.3); }
     .logo { font-size: 24px; font-weight: 800; color: var(--neon); text-shadow: 0 0 10px rgba(0, 255, 247, 0.4); }
     .theme-btn { background: transparent; border: 1px solid var(--neon); color: var(--neon); padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: 0.2s;}
     .theme-btn:hover { background: rgba(0, 255, 247, 0.1); }
@@ -200,7 +206,7 @@
     .format-pill:hover { background: var(--card-hover); border-color: var(--neon); color: var(--neon); transform: translateY(-2px);}
     .format-pill.selected { background: var(--neon); color: #000; border-color: var(--neon); }
 
-    /* The Dedicated Description Panel (Fixes Tooltip Clipping) */
+    /* The Dedicated Description Panel */
     .format-desc-panel {
       padding: 16px;
       border-top: 1px solid var(--border);
@@ -241,14 +247,17 @@
       .category-sidebar { width: 100%; height: auto; display: flex; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 0;}
       .cat-tab { white-space: nowrap; border-left: none !important; border-bottom: 3px solid transparent; }
       .cat-tab.active { border-bottom: 3px solid var(--neon); }
-      .cat-tab span { display: none; } /* hide arrow on mobile */
+      .cat-tab span { display: none; }
     }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <div class="logo">NexusConvert<span style="color:var(--text)">Pro</span></div>
+    <div class="logo-container">
+      <img src="icon.jpg" alt="Logo" class="app-icon">
+      <div class="logo">NexusConvert<span style="color:var(--text)">Pro</span></div>
+    </div>
     <button class="theme-btn" id="themeToggle">Light Mode</button>
   </div>
 
